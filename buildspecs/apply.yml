@@ -1,0 +1,11 @@
+version: 0.2
+
+phases:
+  build:
+    commands:
+      - set -eu
+      - cd "$CODEBUILD_SRC_DIR/$TF_DIR"
+      - PLAN_FILE="$(ls "$CODEBUILD_SRC_DIR_PlanArtifact"/tfplan_* | head -n 1)"
+      - cp "$PLAN_FILE" ./tfplan
+      - terraform init -lock=false -input=false -reconfigure -backend-config="${BACKEND_FILE}"
+      - terraform apply -no-color -input=false ./tfplan

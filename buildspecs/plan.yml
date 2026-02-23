@@ -1,0 +1,16 @@
+version: 0.2
+
+phases:
+  build:
+    commands:
+      - set -eu
+      - cd "$CODEBUILD_SRC_DIR/$TF_DIR"
+      - terraform init -lock=false -input=false -reconfigure -backend-config="${BACKEND_FILE}"
+      - PLAN_FILE="tfplan_${ACCOUNT_ID}_${AWS_REGION}"
+      - terraform plan -no-color -input=false -var-file="${TFVARS_FILE}" -var-file="${SHARED_VARS}" -out="$PLAN_FILE"
+
+artifacts:
+  base-directory: "$CODEBUILD_SRC_DIR/$TF_DIR"
+  files:
+    - tfplan_*
+  discard-paths: yes
