@@ -60,7 +60,6 @@ variable "codestar_provider_endpoint" {
     condition = (
     !contains(["GitLabSelfManaged", "GitHubEnterpriseServer"], var.codestar_provider_type)
     || var.codestar_provider_endpoint != null
-    || var.gitlab_base_url != null
     )
     error_message = "For GitLabSelfManaged or GitHubEnterpriseServer you must set codestar_provider_endpoint, or provide legacy gitlab_base_url."
   }
