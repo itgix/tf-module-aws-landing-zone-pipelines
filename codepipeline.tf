@@ -29,8 +29,8 @@ resource "aws_codepipeline" "lz" {
 
       configuration = {
         ConnectionArn    = local.codestar_connection_arn_effective
-        FullRepositoryId = var.gitlab_full_repository_id
-        BranchName       = var.gitlab_branch
+        FullRepositoryId = var.vcs_repository_id
+        BranchName       = var.vcs_branch
         DetectChanges    = "true"
       }
     }

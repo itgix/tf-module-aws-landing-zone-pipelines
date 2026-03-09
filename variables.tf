@@ -1,44 +1,18 @@
-# CodeStar / CodeConnections
-variable "gitlab_base_url" {
-  type        = string
-  description = "Base URL of self-managed GitLab (legacy)."
-  default     = null
-  nullable    = true
-}
-
-variable "gitlab_host_name" {
-  type        = string
-  description = "CodeConnections Host name (legacy)."
-  default     = "itgix-gitlab-selfmanaged"
-}
-
-variable "gitlab_connection_name" {
-  type        = string
-  description = "CodeConnections Connection name (legacy)."
-  default     = "itgix-lz-gitlab-connection"
-}
-
-variable "gitlab_full_repository_id" {
-  description = "Repository in the format <group>/<repo> (legacy)."
-  type        = string
-  default     = "rnd/aws-landing-zones/landing-zone-deployment"
-}
-
-variable "gitlab_branch" {
-  description = "Branch to track (legacy)."
-  type        = string
-  default     = "main"
-}
-
-# Generic provider selection
+# Source provider / CodeConnections
 variable "codestar_provider_type" {
-  description = "Source provider type for CodeStar connection."
+  description = "Source repository provider used by AWS CodeConnections."
   type        = string
   default     = "GitLabSelfManaged"
 
   validation {
     condition = contains(
-      ["GitLabSelfManaged", "GitLab", "GitHub", "Bitbucket", "GitHubEnterpriseServer"],
+      [
+        "GitLabSelfManaged",
+        "GitLab",
+        "GitHub",
+        "Bitbucket",
+        "GitHubEnterpriseServer"
+      ],
       var.codestar_provider_type
     )
     error_message = "codestar_provider_type must be one of: GitLabSelfManaged, GitLab, GitHub, Bitbucket, GitHubEnterpriseServer."
@@ -46,66 +20,88 @@ variable "codestar_provider_type" {
 }
 
 variable "create_codestar_host" {
-  description = "If true, create aws_codestarconnections_host (used only for GitLabSelfManaged / GitHubEnterpriseServer)."
+  description = "If true, create aws_codestarconnections_host. This is typically required only for self-managed providers such as GitLabSelfManaged and GitHubEnterpriseServer."
   type        = bool
   default     = true
 }
 
 variable "create_codestar_connection" {
-  description = "If true, create aws_codestarconnections_connection; otherwise use codestar_connection_arn."
+  description = "If true, create aws_codestarconnections_connection. If false, codestar_connection_arn must be provided."
   type        = bool
   default     = true
 }
 
 variable "codestar_connection_arn" {
-  description = "Existing CodeStar connection ARN. Used when create_codestar_connection = false."
+  description = "Existing CodeConnections connection ARN to use when create_codestar_connection = false."
   type        = string
   default     = null
   nullable    = true
 
   validation {
     condition     = var.create_codestar_connection || var.codestar_connection_arn != null
-    error_message = "When create_codestar_connection = false, you must set codestar_connection_arn."
+    error_message = "When create_codestar_connection = false, codestar_connection_arn must be provided."
   }
 }
 
-# Optional generic names/endpoints
 variable "codestar_host_name" {
-  description = "Generic host name override (optional)."
+  description = "Host name for aws_codestarconnections_host. Used for self-managed providers."
   type        = string
   default     = null
   nullable    = true
 }
 
 variable "codestar_provider_endpoint" {
-  description = "Generic provider endpoint override (optional). Required for GitLabSelfManaged/GitHubEnterpriseServer if gitlab_base_url is not set."
+  description = "Endpoint URL for the source provider. Required for self-managed providers such as GitLabSelfManaged and GitHubEnterpriseServer."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition = (
+    !contains(["GitLabSelfManaged", "GitHubEnterpriseServer"], var.codestar_provider_type)
+    || var.codestar_provider_endpoint != null
+    || var.gitlab_base_url != null
+    )
+    error_message = "For GitLabSelfManaged or GitHubEnterpriseServer you must set codestar_provider_endpoint, or provide legacy gitlab_base_url."
+  }
+}
+
+variable "codestar_connection_name" {
+  description = "Name of the CodeConnections connection."
   type        = string
   default     = null
   nullable    = true
 }
 
-variable "codestar_connection_name" {
-  description = "Generic connection name override (optional)."
+# Repository settings
+variable "vcs_repository_id" {
+  description = "Repository identifier in provider format, for example <group>/<repo> or <org>/<repo>."
   type        = string
   default     = null
   nullable    = true
+}
+
+variable "vcs_branch" {
+  description = "Branch to track in the source repository."
+  type        = string
+  default     = "main"
 }
 
 # General
 variable "tags" {
   type        = map(string)
-  description = "Additional tags to apply to all resources"
+  description = "Additional tags to apply to resources created by this module."
   default     = {}
 }
 
 variable "project_name" {
-  description = "Base project identifier used in naming"
+  description = "Base project identifier used in resource naming."
   type        = string
   default     = "itgix"
 }
 
 variable "policy_name_prefix" {
-  description = "Optional prefix for IAM policy names. Defaults to project_name."
+  description = "Optional prefix for IAM policy names. If not set, project_name can be used instead."
   type        = string
   default     = null
   nullable    = true
@@ -114,7 +110,7 @@ variable "policy_name_prefix" {
 # Regions / profiles
 variable "account_primary_region" {
   type        = string
-  description = "Primary AWS region where the main resources for this account are deployed."
+  description = "Primary AWS region where the main resources for the account are deployed."
   default     = "eu-central-1"
 }
 
@@ -126,44 +122,71 @@ variable "replica_region" {
 
 variable "pipelines_management_profile" {
   type        = string
-  description = "Optional explicit AWS CLI profile. If empty, rely on env AWS_PROFILE."
+  description = "Optional explicit AWS CLI profile. If empty, rely on AWS_PROFILE from the environment."
   default     = ""
 }
 
-# Accounts (still required - no safe defaults)
-variable "management_account_id"        { type = string }
-variable "logging_and_audit_account_id" { type = string }
-variable "security_account_id"          { type = string }
-variable "shared_services_account_id"   { type = string }
-variable "dev_account_id"               { type = string }
-variable "stage_account_id"             { type = string }
-variable "prod_account_id"              { type = string }
+# Account IDs
+variable "management_account_id" {
+  description = "AWS account ID for the management account."
+  type        = string
+}
+
+variable "logging_and_audit_account_id" {
+  description = "AWS account ID for the logging-and-audit account."
+  type        = string
+}
+
+variable "security_account_id" {
+  description = "AWS account ID for the security account."
+  type        = string
+}
+
+variable "shared_services_account_id" {
+  description = "AWS account ID for the shared-services account."
+  type        = string
+}
+
+variable "dev_account_id" {
+  description = "AWS account ID for the development account."
+  type        = string
+}
+
+variable "stage_account_id" {
+  description = "AWS account ID for the stage account."
+  type        = string
+}
+
+variable "prod_account_id" {
+  description = "AWS account ID for the production account."
+  type        = string
+}
 
 # Pipeline execution
 variable "mode" {
-  description = "CodePipeline execution mode"
+  description = "CodePipeline execution mode."
   type        = string
   default     = "SUPERSEDED"
 
   validation {
     condition     = contains(["SUPERSEDED", "PARALLEL", "QUEUED"], var.mode)
-    error_message = "Supported pipeline mode are SUPERSEDED, PARALLEL or QUEUED."
+    error_message = "mode must be one of: SUPERSEDED, PARALLEL, QUEUED."
   }
 }
 
 variable "terraform_image" {
-  description = "Container image used by CodeBuild jobs"
+  description = "Container image used by CodeBuild jobs."
   type        = string
   default     = "hashicorp/terraform:1.14.5"
 }
 
 variable "build_timeout" {
-  description = "Minutes for CodeBuild job timeout."
+  description = "CodeBuild timeout in minutes."
   type        = number
   default     = 10
 }
 
-# KMS / Artefacts
+# KMS / artefacts
 variable "kms_key_administrator_arns" {
   description = "List of IAM principal ARNs allowed to administer the KMS keys."
   type        = list(string)
@@ -171,77 +194,72 @@ variable "kms_key_administrator_arns" {
 }
 
 variable "pipeline_artefacts_kms_alias" {
-  description = "Alias name for the KMS key used for pipeline artefacts."
+  description = "Alias name for the KMS key used to encrypt pipeline artefacts."
   type        = string
   default     = "itgix-lz-pl-artefacts"
-
 }
 
 # Paths / files
 variable "shared_vars_path" {
-  description = "Path to shared Terraform variables file."
+  description = "Path to the shared Terraform variables file."
   type        = string
   default     = "../shared-vars/shared.tfvars"
 }
 
-# IAM Role names + AssumeRole behavior
+# IAM role names / AssumeRole behaviour
 variable "deploy_role_name" {
-  description = "Name of the IAM role used for cross-account deployment (pivot)."
+  description = "Name of the IAM role used for cross-account deployment (pivot role)."
   type        = string
   default     = "itgix-lz-deployer"
-
 }
 
 variable "execution_role_name" {
-  description = "Role assumed by Terraform providers inside target accounts."
+  description = "Name of the IAM role assumed by Terraform providers inside target accounts."
   type        = string
   default     = "itgix-landing-zones"
-
 }
 
 variable "codepipeline_role_name" {
   description = "Name of the IAM role used by CodePipeline."
   type        = string
   default     = "itgix_lz_codepipeline_role"
-
 }
 
 variable "codebuild_role_name" {
   description = "Name of the IAM role used by CodeBuild."
   type        = string
   default     = "itgix-lz-codebuild-role"
-
 }
 
 variable "allow_assume_deploy_role" {
-  description = "Whether CodeBuild role can assume the pivot deploy role in target accounts."
+  description = "Whether the CodeBuild role is allowed to assume the deploy role in target accounts."
   type        = bool
   default     = true
 }
 
 variable "allow_assume_execution_role" {
-  description = "Whether CodeBuild role can assume the execution role in target accounts."
+  description = "Whether the CodeBuild role is allowed to assume the execution role in target accounts."
   type        = bool
   default     = true
 }
 
-# Pipelines definitions + TF state buckets
+# Pipeline definitions / Terraform state buckets
 variable "pipelines" {
-  description = "Definitions for each pipeline. Key is pipeline_id."
+  description = "Definitions for each pipeline. The map key is the pipeline identifier."
   type = map(object({
-    pipeline_key     = string
-    tf_dir           = string
-    backend_file     = string
-    tfvars_file      = string
-    shared_vars      = string
-    target_role_arn  = string
-    primary_region   = optional(string)
-    enabled          = optional(bool, true)
+    pipeline_key    = string
+    tf_dir          = string
+    backend_file    = string
+    tfvars_file     = string
+    shared_vars     = string
+    target_role_arn = string
+    primary_region  = optional(string)
+    enabled         = optional(bool, true)
   }))
   default = {}
 }
 
 variable "tf_state_buckets" {
+  description = "List of Terraform state bucket names that CodeBuild is allowed to access."
   type        = list(string)
-  description = "List of Terraform state bucket names CodeBuild can access"
 }

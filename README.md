@@ -22,7 +22,7 @@ Each pipeline supports `enabled = true/false`. Disabled pipelines are not create
 - Cloud providers (`GitHub`, `GitLab`, `Bitbucket`) do not require a host.
 
 ### Repository & branch
-The module expects `gitlab_full_repository_id` and `gitlab_branch` (legacy naming) for the Source stage.
+The module expects `gitlab_full_repository_id` and `vcs_branch` (legacy naming) for the Source stage.
 You can keep using those even if you change providers later; rename/generalize later if you want.
 
 ---
