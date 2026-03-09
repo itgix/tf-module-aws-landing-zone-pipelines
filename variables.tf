@@ -32,22 +32,31 @@ variable "create_codestar_connection" {
 }
 
 variable "codestar_connection_arn" {
-  description = "Existing CodeConnections connection ARN to use when create_codestar_connection = false."
+  description = "Existing CodeConnections connection ARN to use when create_codestar_connection is false."
   type        = string
   default     = null
   nullable    = true
 
   validation {
     condition     = var.create_codestar_connection || var.codestar_connection_arn != null
-    error_message = "When create_codestar_connection = false, codestar_connection_arn must be provided."
+    error_message = "When create_codestar_connection is false, codestar_connection_arn must be provided."
   }
 }
 
 variable "codestar_host_name" {
-  description = "Host name for aws_codestarconnections_host. Used for self-managed providers."
+  description = "Host name for aws_codestarconnections_host. Required for self-managed providers when create_codestar_host is true."
   type        = string
   default     = null
   nullable    = true
+
+  validation {
+    condition = (
+    !var.create_codestar_host
+    || !contains(["GitLabSelfManaged", "GitHubEnterpriseServer"], var.codestar_provider_type)
+    || var.codestar_host_name != null
+    )
+    error_message = "When create_codestar_host is true for GitLabSelfManaged or GitHubEnterpriseServer, codestar_host_name must be provided."
+  }
 }
 
 variable "codestar_provider_endpoint" {
@@ -61,23 +70,26 @@ variable "codestar_provider_endpoint" {
     !contains(["GitLabSelfManaged", "GitHubEnterpriseServer"], var.codestar_provider_type)
     || var.codestar_provider_endpoint != null
     )
-    error_message = "For GitLabSelfManaged or GitHubEnterpriseServer you must set codestar_provider_endpoint, or provide legacy gitlab_base_url."
+    error_message = "For GitLabSelfManaged or GitHubEnterpriseServer you must set codestar_provider_endpoint."
   }
 }
 
 variable "codestar_connection_name" {
-  description = "Name of the CodeConnections connection."
+  description = "Name of the CodeConnections connection. Required when create_codestar_connection is true."
   type        = string
   default     = null
   nullable    = true
+
+  validation {
+    condition     = !var.create_codestar_connection || var.codestar_connection_name != null
+    error_message = "When create_codestar_connection is true, codestar_connection_name must be provided."
+  }
 }
 
 # Repository settings
 variable "vcs_repository_id" {
   description = "Repository identifier in provider format, for example <group>/<repo> or <org>/<repo>."
   type        = string
-  default     = null
-  nullable    = true
 }
 
 variable "vcs_branch" {
@@ -88,8 +100,8 @@ variable "vcs_branch" {
 
 # General
 variable "tags" {
-  type        = map(string)
   description = "Additional tags to apply to resources created by this module."
+  type        = map(string)
   default     = {}
 }
 
@@ -108,20 +120,20 @@ variable "policy_name_prefix" {
 
 # Regions / profiles
 variable "account_primary_region" {
-  type        = string
   description = "Primary AWS region where the main resources for the account are deployed."
+  type        = string
   default     = "eu-central-1"
 }
 
 variable "replica_region" {
-  type        = string
   description = "Secondary AWS region used for cross-region replication."
+  type        = string
   default     = ""
 }
 
 variable "pipelines_management_profile" {
-  type        = string
   description = "Optional explicit AWS CLI profile. If empty, rely on AWS_PROFILE from the environment."
+  type        = string
   default     = ""
 }
 
@@ -183,6 +195,11 @@ variable "build_timeout" {
   description = "CodeBuild timeout in minutes."
   type        = number
   default     = 10
+
+  validation {
+    condition     = var.build_timeout >= 5 && var.build_timeout <= 2160
+    error_message = "build_timeout must be between 5 and 2160 minutes."
+  }
 }
 
 # KMS / artefacts
