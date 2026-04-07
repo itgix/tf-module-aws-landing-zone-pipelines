@@ -134,6 +134,8 @@ resource "aws_codepipeline" "lz" {
       owner    = "AWS"
       provider = "Manual"
       version  = "1"
+      timeout_in_minutes = var.approval_timeout
+
     }
   }
 

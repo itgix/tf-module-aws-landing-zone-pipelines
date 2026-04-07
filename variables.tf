@@ -201,6 +201,17 @@ variable "build_timeout" {
     error_message = "build_timeout must be between 5 and 2160 minutes."
   }
 }
+variable "approval_timeout" {
+  description = "CodeBuild timeout in minutes."
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.approval_timeout >= 5 && var.approval_timeout <= 86400
+    error_message = "build_timeout must be between 5 and 86400 minutes."
+  }
+}
+
 
 # KMS / artefacts
 variable "kms_key_administrator_arns" {
