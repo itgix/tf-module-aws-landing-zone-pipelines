@@ -1,9 +1,81 @@
 version: 0.2
+
 phases:
   build:
     commands:
       - set -eu
+
+      - PLAN_FILE="tfplan_${ACCOUNT_ID}_${AWS_REGION}"
+      - PLAN_HASH_FILE="${PLAN_FILE}.sha256"
+      - PLAN_COMMIT_FILE="plan_commit_${ACCOUNT_ID}_${AWS_REGION}.txt"
+      - PLAN_ACCOUNT_FILE="plan_account_id_${ACCOUNT_ID}_${AWS_REGION}.txt"
+      - PLAN_REGION_FILE="plan_region_${ACCOUNT_ID}_${AWS_REGION}.txt"
+      - PLAN_BUILD_FILE="plan_build_id_${ACCOUNT_ID}_${AWS_REGION}.txt"
+      - PLAN_CREATED_FILE="plan_created_at_${ACCOUNT_ID}_${AWS_REGION}.txt"
+      - PLAN_CREATED_EPOCH_FILE="plan_created_epoch_${ACCOUNT_ID}_${AWS_REGION}.txt"
+
+      - PLAN_ARTIFACT_DIR="${CODEBUILD_SRC_DIR_PlanArtifact}"
+
+      - test -n "${PLAN_ARTIFACT_DIR}"
+      - test -d "${PLAN_ARTIFACT_DIR}"
+
       - cd "$CODEBUILD_SRC_DIR/$TF_DIR"
+
       - terraform init -lock=false -input=false -reconfigure -backend-config="${BACKEND_FILE}"
-      - terraform plan -no-color -input=false -var-file="${TFVARS_FILE}" -var-file="${SHARED_VARS}" -out=tfplan
-      - terraform apply -no-color -input=false tfplan
+
+      # copy artifacts
+      - cp "${PLAN_ARTIFACT_DIR}/${PLAN_FILE}" .
+      - cp "${PLAN_ARTIFACT_DIR}/${PLAN_HASH_FILE}" .
+      - cp "${PLAN_ARTIFACT_DIR}/${PLAN_COMMIT_FILE}" .
+      - cp "${PLAN_ARTIFACT_DIR}/${PLAN_ACCOUNT_FILE}" .
+      - cp "${PLAN_ARTIFACT_DIR}/${PLAN_REGION_FILE}" .
+      - cp "${PLAN_ARTIFACT_DIR}/${PLAN_BUILD_FILE}" .
+      - cp "${PLAN_ARTIFACT_DIR}/${PLAN_CREATED_FILE}" .
+      - cp "${PLAN_ARTIFACT_DIR}/${PLAN_CREATED_EPOCH_FILE}" .
+
+      # validate existence
+      - test -f "${PLAN_FILE}"
+      - test -f "${PLAN_HASH_FILE}"
+      - test -f "${PLAN_COMMIT_FILE}"
+      - test -f "${PLAN_ACCOUNT_FILE}"
+      - test -f "${PLAN_REGION_FILE}"
+      - test -f "${PLAN_BUILD_FILE}"
+      - test -f "${PLAN_CREATED_FILE}"
+      - test -f "${PLAN_CREATED_EPOCH_FILE}"
+
+      # integrity check
+      - sha256sum -c "${PLAN_HASH_FILE}"
+
+      # read metadata
+      - PLAN_COMMIT="$(cat "${PLAN_COMMIT_FILE}")"
+      - PLAN_ACCOUNT_ID="$(cat "${PLAN_ACCOUNT_FILE}")"
+      - PLAN_REGION="$(cat "${PLAN_REGION_FILE}")"
+      - PLAN_BUILD_ID="$(cat "${PLAN_BUILD_FILE}")"
+      - PLAN_CREATED_AT="$(cat "${PLAN_CREATED_FILE}")"
+      - PLAN_CREATED_EPOCH="$(cat "${PLAN_CREATED_EPOCH_FILE}")"
+      - CURRENT_COMMIT="${CODEBUILD_RESOLVED_SOURCE_VERSION}"
+
+      - 'echo "Plan commit: $PLAN_COMMIT"'
+      - 'echo "Current commit: $CURRENT_COMMIT"'
+      - 'echo "Plan account: $PLAN_ACCOUNT_ID"'
+      - 'echo "Current account: $ACCOUNT_ID"'
+      - 'echo "Plan region: $PLAN_REGION"'
+      - 'echo "Current region: $AWS_REGION"'
+      - 'echo "Plan build id: $PLAN_BUILD_ID"'
+      - 'echo "Plan created at: $PLAN_CREATED_AT"'
+      - 'echo "Plan created epoch: $PLAN_CREATED_EPOCH"'
+
+      # strict validations
+      - test "$PLAN_ACCOUNT_ID" = "$ACCOUNT_ID"
+      - test "$PLAN_REGION" = "$AWS_REGION"
+      - test "$PLAN_COMMIT" = "$CURRENT_COMMIT"
+
+      # TTL check
+      - TTL_SECONDS="${PLAN_TTL_SECONDS:-1800}"
+      - NOW_EPOCH="$(date -u +%s)"
+      - AGE_SECONDS=$((NOW_EPOCH - PLAN_CREATED_EPOCH))
+      - 'echo "Plan age (seconds): $AGE_SECONDS (TTL: $TTL_SECONDS)"'
+      - test "$AGE_SECONDS" -le "$TTL_SECONDS"
+
+      # apply
+      - terraform apply -no-color -input=false "$PLAN_FILE"
