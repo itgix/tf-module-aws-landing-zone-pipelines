@@ -129,11 +129,11 @@ resource "aws_codepipeline" "lz" {
   stage {
     name = "Approval"
     action {
-      name     = "ManualApproval"
-      category = "Approval"
-      owner    = "AWS"
-      provider = "Manual"
-      version  = "1"
+      name               = "ManualApproval"
+      category           = "Approval"
+      owner              = "AWS"
+      provider           = "Manual"
+      version            = "1"
       timeout_in_minutes = var.approval_timeout
 
     }
