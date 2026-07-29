@@ -51,9 +51,9 @@ variable "codestar_host_name" {
 
   validation {
     condition = (
-    !var.create_codestar_host
-    || !contains(["GitLabSelfManaged", "GitHubEnterpriseServer"], var.codestar_provider_type)
-    || var.codestar_host_name != null
+      !var.create_codestar_host
+      || !contains(["GitLabSelfManaged", "GitHubEnterpriseServer"], var.codestar_provider_type)
+      || var.codestar_host_name != null
     )
     error_message = "When create_codestar_host is true for GitLabSelfManaged or GitHubEnterpriseServer, codestar_host_name must be provided."
   }
@@ -67,8 +67,8 @@ variable "codestar_provider_endpoint" {
 
   validation {
     condition = (
-    !contains(["GitLabSelfManaged", "GitHubEnterpriseServer"], var.codestar_provider_type)
-    || var.codestar_provider_endpoint != null
+      !contains(["GitLabSelfManaged", "GitHubEnterpriseServer"], var.codestar_provider_type)
+      || var.codestar_provider_endpoint != null
     )
     error_message = "For GitLabSelfManaged or GitHubEnterpriseServer you must set codestar_provider_endpoint."
   }

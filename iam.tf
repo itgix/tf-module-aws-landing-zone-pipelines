@@ -120,21 +120,21 @@ module "codebuild_role" {
           ],
 
           # Optional: allow assuming pivot deploy role in all accounts
-            var.allow_assume_deploy_role ? [
+          var.allow_assume_deploy_role ? [
             {
-              Sid    = "AssumeDeployRole"
-              Effect = "Allow"
-              Action = ["sts:AssumeRole"]
+              Sid      = "AssumeDeployRole"
+              Effect   = "Allow"
+              Action   = ["sts:AssumeRole"]
               Resource = local.deploy_role_arn_list
             }
           ] : [],
 
           # Optional: allow assuming execution role in all accounts
-            var.allow_assume_execution_role ? [
+          var.allow_assume_execution_role ? [
             {
-              Sid    = "AssumeExecutionRole"
-              Effect = "Allow"
-              Action = ["sts:AssumeRole"]
+              Sid      = "AssumeExecutionRole"
+              Effect   = "Allow"
+              Action   = ["sts:AssumeRole"]
               Resource = local.execution_role_arn_list
             }
           ] : []
