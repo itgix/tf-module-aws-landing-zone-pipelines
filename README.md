@@ -15,6 +15,14 @@ Part of the [ITGix AWS Landing Zone](https://itgix.com/itgix-landing-zone/).
 - S3 bucket for pipeline artifacts
 - IAM roles and policies for CodePipeline and CodeBuild
 
+## Plan / Apply hand-off
+
+Plan and Apply run in separate CodeBuild jobs. The Plan job passes the saved plan to Apply through
+the `PlanArtifact`, together with a tarball of every `*.zip` in the source tree (excluding `.git` and
+`.terraform`). This covers files generated during plan, such as Lambda or canary packages built by
+`data "archive_file"`, which the saved plan references by path but Apply does not regenerate.
+The tarball is restored at its original paths and covered by the plan integrity check.
+
 ## Inputs
 
 | Name | Description | Type | Default | Required |

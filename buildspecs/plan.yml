@@ -17,8 +17,26 @@ phases:
       - PLAN_CREATED_FILE="plan_created_at_${ACCOUNT_ID}_${AWS_REGION}.txt"
       - PLAN_CREATED_EPOCH_FILE="plan_created_epoch_${ACCOUNT_ID}_${AWS_REGION}.txt"
 
+      - PLAN_BUILD_FILES="plan_build_files_${ACCOUNT_ID}_${AWS_REGION}.tgz"
+      - PLAN_BUILD_FILES_MANIFEST=".plan_build_files_manifest"
+
       - terraform plan -no-color -input=false -var-file="${TFVARS_FILE}" -var-file="${SHARED_VARS}" -out="$PLAN_FILE"
-      - sha256sum "$PLAN_FILE" > "$PLAN_HASH_FILE"
+
+      # Files generated during plan (e.g. Lambda/canary zips from data "archive_file") are
+      # referenced by path in the saved plan, but apply runs in a fresh checkout and does not
+      # re-read data sources. Ship every *.zip in the source tree (paths relative to the repo
+      # root) so apply can restore them. The manifest keeps the tarball non-empty.
+      - |
+        (
+          cd "$CODEBUILD_SRC_DIR"
+          find . \( -name .git -o -name .terraform \) -prune -o -type f -name '*.zip' -print > "$PLAN_BUILD_FILES_MANIFEST"
+          echo "Build files shipped to apply:"
+          cat "$PLAN_BUILD_FILES_MANIFEST"
+          echo "$PLAN_BUILD_FILES_MANIFEST" >> "$PLAN_BUILD_FILES_MANIFEST"
+          tar -czf "$CODEBUILD_SRC_DIR/$TF_DIR/$PLAN_BUILD_FILES" -T "$PLAN_BUILD_FILES_MANIFEST"
+        )
+
+      - sha256sum "$PLAN_FILE" "$PLAN_BUILD_FILES" > "$PLAN_HASH_FILE"
 
       - printf '%s' "$CODEBUILD_RESOLVED_SOURCE_VERSION" > "$PLAN_COMMIT_FILE"
       - printf '%s' "$ACCOUNT_ID" > "$PLAN_ACCOUNT_FILE"
@@ -38,4 +56,5 @@ artifacts:
     - plan_build_id_*.txt
     - plan_created_at_*.txt
     - plan_created_epoch_*.txt
+    - plan_build_files_*.tgz
   discard-paths: yes

@@ -13,6 +13,7 @@ phases:
       - PLAN_BUILD_FILE="plan_build_id_${ACCOUNT_ID}_${AWS_REGION}.txt"
       - PLAN_CREATED_FILE="plan_created_at_${ACCOUNT_ID}_${AWS_REGION}.txt"
       - PLAN_CREATED_EPOCH_FILE="plan_created_epoch_${ACCOUNT_ID}_${AWS_REGION}.txt"
+      - PLAN_BUILD_FILES="plan_build_files_${ACCOUNT_ID}_${AWS_REGION}.tgz"
 
       - PLAN_ARTIFACT_DIR="${CODEBUILD_SRC_DIR_PlanArtifact}"
 
@@ -32,6 +33,7 @@ phases:
       - cp "${PLAN_ARTIFACT_DIR}/${PLAN_BUILD_FILE}" .
       - cp "${PLAN_ARTIFACT_DIR}/${PLAN_CREATED_FILE}" .
       - cp "${PLAN_ARTIFACT_DIR}/${PLAN_CREATED_EPOCH_FILE}" .
+      - cp "${PLAN_ARTIFACT_DIR}/${PLAN_BUILD_FILES}" .
 
       # validate existence
       - test -f "${PLAN_FILE}"
@@ -42,9 +44,13 @@ phases:
       - test -f "${PLAN_BUILD_FILE}"
       - test -f "${PLAN_CREATED_FILE}"
       - test -f "${PLAN_CREATED_EPOCH_FILE}"
+      - test -f "${PLAN_BUILD_FILES}"
 
-      # integrity check
+      # integrity check (plan file + build files)
       - sha256sum -c "${PLAN_HASH_FILE}"
+
+      # restore files generated during plan (e.g. archive_file zips) at their original paths
+      - tar -xzf "${PLAN_BUILD_FILES}" -C "$CODEBUILD_SRC_DIR"
 
       # read metadata
       - PLAN_COMMIT="$(cat "${PLAN_COMMIT_FILE}")"
