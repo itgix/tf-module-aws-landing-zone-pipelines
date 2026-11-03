@@ -23,6 +23,19 @@ the `PlanArtifact`, together with a tarball of every `*.zip` in the source tree 
 `data "archive_file"`, which the saved plan references by path but Apply does not regenerate.
 The tarball is restored at its original paths and covered by the plan integrity check.
 
+## Approval expiry
+
+Plans are meant to be applied shortly after they are reviewed. With `stop_expired_approvals = true`
+(default), an execution whose manual approval is not decided within `approval_timeout` minutes is
+**stopped** (status `Stopped`, with the reason in the execution history) instead of failing:
+
+- An EventBridge rule catches the Approval action starting and starts a Step Functions (Standard)
+  workflow, which waits `approval_timeout` minutes.
+- If the Approval stage is still in progress for that same execution, the workflow calls
+  `StopPipelineExecution` (abandon). Approved, rejected or superseded executions are left alone.
+- The native approval timeout is set to `approval_timeout + 10` minutes and only fails the
+  execution if the workflow did not run.
+
 ## Inputs
 
 | Name | Description | Type | Default | Required |
@@ -52,6 +65,8 @@ The tarball is restored at its original paths and covered by the plan integrity 
 | `mode` | CodePipeline execution mode (SUPERSEDED, PARALLEL, QUEUED) | `string` | `"SUPERSEDED"` | no |
 | `terraform_image` | Container image used by CodeBuild jobs | `string` | `"hashicorp/terraform:1.14.5"` | no |
 | `build_timeout` | CodeBuild timeout in minutes (5-2160) | `number` | `10` | no |
+| `approval_timeout` | Minutes a plan can wait for manual approval before the execution expires (5-86400) | `number` | `5` | no |
+| `stop_expired_approvals` | Stop (instead of fail) executions whose approval expired, see [Approval expiry](#approval-expiry) | `bool` | `true` | no |
 | `kms_key_administrator_arns` | IAM principal ARNs allowed to administer KMS keys | `list(string)` | `[]` | no |
 | `pipeline_artefacts_kms_alias` | Alias for the KMS key used for pipeline artifacts | `string` | `"itgix-lz-pl-artefacts"` | no |
 | `shared_vars_path` | Path to the shared Terraform variables file | `string` | `"../shared-vars/shared.tfvars"` | no |
