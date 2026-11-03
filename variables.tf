@@ -202,14 +202,20 @@ variable "build_timeout" {
   }
 }
 variable "approval_timeout" {
-  description = "CodeBuild timeout in minutes."
+  description = "Minutes a plan can wait for manual approval before the execution expires."
   type        = number
   default     = 5
 
   validation {
     condition     = var.approval_timeout >= 5 && var.approval_timeout <= 86400
-    error_message = "build_timeout must be between 5 and 86400 minutes."
+    error_message = "approval_timeout must be between 5 and 86400 minutes."
   }
+}
+
+variable "stop_expired_approvals" {
+  description = "Stop (instead of fail) executions whose manual approval was not decided within approval_timeout. Adds an EventBridge rule and a Step Functions workflow; the native approval timeout becomes approval_timeout + 10 minutes as a fallback."
+  type        = bool
+  default     = true
 }
 
 

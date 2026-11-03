@@ -127,15 +127,24 @@ resource "aws_codepipeline" "lz" {
   }
 
   stage {
-    name = "Approval"
+    name = local.approval_stage_name
     action {
-      name               = "ManualApproval"
-      category           = "Approval"
-      owner              = "AWS"
-      provider           = "Manual"
-      version            = "1"
-      timeout_in_minutes = var.approval_timeout
+      name     = "ManualApproval"
+      category = "Approval"
+      owner    = "AWS"
+      provider = "Manual"
+      version  = "1"
+      # With stop_expired_approvals the execution is stopped after approval_timeout minutes;
+      # the native timeout (which fails the execution) is only a fallback.
+      timeout_in_minutes = local.approval_action_timeout
 
+      configuration = {
+        CustomData = (
+          var.stop_expired_approvals
+          ? "Review the Plan output and decide within ${var.approval_timeout} minutes. After that the execution is stopped and the pipeline has to be re-run for a fresh plan."
+          : "Review the Plan output and decide within ${var.approval_timeout} minutes."
+        )
+      }
     }
   }
 
